@@ -20,7 +20,7 @@ import {
   response,
   HttpErrors,
 } from '@loopback/rest';
-import {User, UserLogin} from '../models';
+import {User, UserLogin, Email} from '../models';
 import {UserRepository} from '../repositories';
 import { AuthenticationService } from '../services';
 
@@ -32,6 +32,22 @@ export class UserController {
     @service(AuthenticationService)
     public authenticationService : AuthenticationService,
   ) {}
+  @authenticate.skip()
+  @post('/sendEmail')
+  @response(200, {
+    description: 'Email sent successfully'
+  })
+  async sendEmail(
+    @requestBody() email : Email
+  ) {
+    try {
+      let result = await this.authenticationService.sendEmailPromise(email.to, email.subject, email.message)
+      console.log(result)
+      return (result[0].statusCode == 202 ? {status : 'Email Sent successfully'} : {status : 'Email Sent failed'})
+    } catch(err) {
+      return {error : err.message, code : err.code}
+    }
+  }
 
   @authenticate.skip()
   @post('/login')
@@ -44,22 +60,37 @@ export class UserController {
   {
     let user = await this.authenticationService.logInAsync(userLogin.email, userLogin.password)
     if (user) {
-      let token = this.authenticationService.generateToken(user)
+      let token = this.authenticationService.generateEncryptedToken(user)
+
+      // Obtain time
       let today = new Date()
       let now = today.toLocaleTimeString()
-      let result = this.authenticationService.sendSMS('Loged In from ' + user.email + ' at ' + now, user.phoneNumber)
+
+      // Send SMS notification
+      let result = await this.authenticationService.sendSMS('Loged In from ' + user.email + ' at ' + now, user.phoneNumber)
+
+      // // Send Email notification
+      // let message = `
+      //   <h3>Bienvenido ${user.names} ${user.lastNames} a NotesApp</h3>
+      //   <br><br>
+      //   <p>Puedes empezar a crear tus primeras notas o enventos de una manera muy sencilla</p>
+      //   <p>Recibirás periodicamente SMS donde te notificaremos sobre logueos y entre otras cosas</p>
+      //   <p><a href="https://github.com/KobeBryan03" target="_blank">Click para ver repositorio de GitHub</a></p>
+      // `
+      // this.authenticationService.sendEmail(user.email, 'Bienvenido a NotesApp', message)
+
       return {
         data : {
           id : user.id,
           name : user.names + ' ' + user.lastNames,
           email : user.email,
           phone : user.phoneNumber,
-          resultSMS : result
         },
-        token : token
+        //resultSMS : result,
+        token : token,
       }
     }else {
-      throw new HttpErrors[401]("Incorrect login")
+      throw new HttpErrors[401]("Unauthorized access")
     }
   }
 
@@ -81,7 +112,19 @@ export class UserController {
     })
     user: Omit<User, 'id'>,
   ): Promise<User> {
+    // Password encryption
     user.password = this.authenticationService.encryptPass(user.password);
+
+    // Obtain time
+    let today = new Date()
+    let now = today.toLocaleTimeString()
+
+    //Message
+    let message = user.names + ' ' + user.lastNames + ' was registered succesfully ' + ' at ' + now
+
+    // Send SMS notification
+    let result = await this.authenticationService.sendSMS(message, user.phoneNumber)
+
     return this.userRepository.create(user);
   }
 
@@ -96,7 +139,6 @@ export class UserController {
     return this.userRepository.count(where);
   }
 
-  @authenticate('admin')
   @get('/users')
   @response(200, {
     description: 'Array of User model instances',

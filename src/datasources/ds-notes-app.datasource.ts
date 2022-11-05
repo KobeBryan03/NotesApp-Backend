@@ -1,14 +1,15 @@
 import {inject, lifeCycleObserver, LifeCycleObserver} from '@loopback/core';
 import {juggler} from '@loopback/repository';
+import { environment } from '../config/environment';
 
 const config = {
   name: 'dsNotesApp',
   connector: 'mongodb',
-  url: 'mongodb+srv://KobeBryan:bvR15GpOLhblT3M4@clusterdw.lzdw9e8.mongodb.net/NotesApp?retryWrites=true&w=majority',
+  url: environment.mongodbUrl,
   host: '',
   port: 0,
-  user: 'KobeBryan',
-  password: 'bvR15GpOLhblT3M4',
+  user: '',
+  password: '',
   database: '',
   useNewUrlParser: true
 };
