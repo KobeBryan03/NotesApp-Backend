@@ -93,7 +93,7 @@ export class UserController {
       throw new HttpErrors[401]("Unauthorized access")
     }
   }
-
+  @authenticate.skip()
   @post('/users')
   @response(200, {
     description: 'User model instance',

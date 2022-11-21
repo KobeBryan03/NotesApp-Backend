@@ -109,7 +109,7 @@ export class AuthenticationService {
         name: user.names + ' ' + user.lastNames
       },
     }, environment.secretJWT,
-    {expiresIn : 60 })
+    {expiresIn : "1d" })
     return token
   }
   generateEncryptedToken(user : User) {
